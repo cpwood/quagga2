@@ -1,4 +1,4 @@
-name: Test Pull Requests To Master
+name: Test Pull Requests To Master (Node 17.0+)
 
 on:
   push:
@@ -13,12 +13,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [12.x, 14.x, 16.x]
+        node-version: [18.x, 19.x, 20.x]
         os: [ubuntu-latest, windows-latest, macOS-latest]
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
     - name: npm versions
@@ -29,14 +29,17 @@ jobs:
       run: npm ci
     - name: build
       run: npm run build --if-present
+      env:
+        CI: true
+        NODE_OPTIONS: --openssl-legacy-provider # necessary for webpack v4 in node 17+
     - name: module test
       run: npm run test:module
     - name: run all code tests
       run: npm test
-    # - name: test package import
-    #   run: |
-    #     npm install ts-node @std/esm
-    #     npm run test:import
-    # - name: test package require
-    #   run: |
-    #     npm run test:require
+    - name: test package import
+      run: |
+        npm install ts-node @std/esm
+        npm run test:import
+    - name: test package require
+      run: |
+        npm run test:require

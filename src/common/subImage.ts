@@ -1,5 +1,5 @@
+import type { ImageRef, SparseImageWrapper, XYSize } from '../../type-definitions/quagga.d';
 import ImageWrapper from './image_wrapper';
-import { ImageRef, SparseImageWrapper, XYSize } from '../../type-definitions/quagga.d';
 
 // A window into a specific area of an ImageWrapper
 export class SubImage {
@@ -30,6 +30,7 @@ export class SubImage {
 
     // Displays the {SubImage} in a given canvas at a given scale
     show(canvas: HTMLCanvasElement, scale = 1.0): void {
+        console.warn('* subImage.show getcontext 2d');
         const ctx = canvas.getContext('2d');
         if (!ctx) {
             throw new Error('Unable to get canvas context');

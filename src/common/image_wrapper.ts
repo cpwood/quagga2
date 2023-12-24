@@ -1,6 +1,4 @@
-import { clone } from 'gl-vec2';
-import { hsv2rgb } from './cv_utils';
-import ArrayHelper from './array_helper';
+import { glMatrix, vec2 } from 'gl-matrix';
 import {
     XYSize,
     TypedArrayConstructor,
@@ -9,8 +7,10 @@ import {
     Moment,
     SparseImageWrapper,
 } from '../../type-definitions/quagga.d';
+import ArrayHelper from './array_helper';
+import { hsv2rgb } from './cv_utils';
 
-const vec2 = { clone };
+glMatrix.setMatrixArrayType(Array);
 
 type PositiveNumber = number;
 function assertNumberPositive(val: number): asserts val is PositiveNumber {
@@ -48,11 +48,6 @@ class ImageWrapper implements SparseImageWrapper {
     // tests if a position is within the image, extended out by a border on each side
     inImageWithBorder(imgRef: XYSize, border: PositiveNumber = 0): boolean {
         assertNumberPositive(border);
-        // TODO: code_128 starts failing miserably when i only allow imgRef to contain positive numbers.
-        // TODO: this doesn't make much sense to me, why does it go negative?  Tests are not affected by
-        // returning false, but the whole code_128 reader blows up when i throw on negative imgRef.
-        // assertNumberPositive(imgRef.x);
-        // assertNumberPositive(imgRef.y);
         return (imgRef.x >= 0)
             && (imgRef.y >= 0)
             && (imgRef.x < (this.size.x + (border * 2)))
@@ -227,6 +222,7 @@ class ImageWrapper implements SparseImageWrapper {
 
     // Display this ImageWrapper in a given Canvas element at the specified scale
     show(canvas: HTMLCanvasElement, scale = 1.0): void {
+        console.warn('* imagewrapper show getcontext 2d');
         const ctx = canvas.getContext('2d');
         if (!ctx) {
             throw new Error('Unable to get canvas context');
@@ -253,6 +249,7 @@ class ImageWrapper implements SparseImageWrapper {
         const whiteRgb = [255, 255, 255];
         const blackRgb = [0, 0, 0];
         let result = [];
+        console.warn('* imagewrapper overlay getcontext 2d');
         const ctx = canvas.getContext('2d');
         if (!ctx) {
             throw new Error('Unable to get canvas context');

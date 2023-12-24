@@ -3,6 +3,8 @@
 // Project: http://serratus.github.io/quaggaJS/
 // Definitions by: Cam Birch, Peter Horwood aka Madman Pierre, Dan Manastireanu <https://github.com/danmana>
 
+import { vec2 } from 'gl-matrix';
+
 // import SubImage from '../src/common/subImage';
 // import ImageWrapper from '../src/common/image_wrapper';
 // export { SubImage, ImageWrapper };
@@ -14,9 +16,9 @@ export default Quagga;
 // contextual meaning.  This allows us to create a type that is branded by name, and therefore these variables cannot be directly
 // mixed up with each other, without explicitly forcing it to happen.  Good.
 export interface XYObject<T extends string> {
+    type: T;
     x: number;
     y: number;
-    type: T;
 }
 
 // TODO: fill this in from cv_utils#imageRef
@@ -40,13 +42,13 @@ export type WrapperIndexMapping = {
 export type Moment = {
     m00: number;
     m01: number;
+    m02: number;
     m10: number;
     m11: number;
-    m02: number;
     m20: number;
-    theta: number;
     rad: number;
-    vec?: Array<number>;
+    theta: number;
+    vec?: vec2;
 };
 
 export class ImageWrapper {
@@ -117,7 +119,7 @@ export interface BarcodeReaderConfig {
 
 export enum BarcodeDirection {
     Forward = 1,
-    Reverse = -1
+    Reverse = -1,
 }
 type BarcodeFormat = string;
 
@@ -127,11 +129,11 @@ export interface BarcodeCorrection {
 }
 
 export interface BarcodePosition {
-    start: number;
-    startCounter?: number;
     end: number;
     endCounter?: number;
     error?: number;
+    start: number;
+    startCounter?: number;
 }
 
 export interface BarcodeInfo extends BarcodePosition {
@@ -154,18 +156,18 @@ export interface Barcode {
 }
 
 export interface ThresholdSize {
-    size: number;
     counts: number;
-    min: number;
     max: number;
+    min: number;
+    size: number;
 }
 
 export interface Threshold {
-    space: {
+    bar: {
         narrow: ThresholdSize;
         wide: ThresholdSize;
     };
-    bar: {
+    space: {
         narrow: ThresholdSize;
         wide: ThresholdSize;
     };
@@ -174,14 +176,17 @@ export interface Threshold {
 export declare module Readers {
     export abstract class BarcodeReader {
         _row: Array<number>;
+
         SINGLE_CODE_ERROR: number;
+
         FORMAT: BarcodeFormat;
+
         CONFIG_KEYS: BarcodeReaderConfig;
 
         static get Exception(): {
-            StartNotFoundException: string;
             CodeNotFoundException: string;
             PatternNotFoundException: string;
+            StartNotFoundException: string;
         };
 
         constructor(config: BarcodeReaderConfig, supplements?: Array<BarcodeReader>);
@@ -207,9 +212,11 @@ export declare module Readers {
 
     export class TwoOfFiveReader extends BarcodeReader {
         FORMAT: string;
+
         SINGLE_CODE_ERROR: number;
+
         AVG_CODE_ERROR: number;
-        
+
         decode(row?: Array<number>, start?: BarcodePosition): Barcode | null;
 
         protected _findPattern(pattern: ReadonlyArray<number>, offset: number, isWhite?: boolean, tryHarder?: boolean): BarcodeInfo | null;
@@ -229,7 +236,7 @@ export declare module Readers {
 
     export class NewCodabarReader extends BarcodeReader {
         FORMAT: string;
-        
+
         decode(row?: Array<number>, start?: BarcodePosition | number | null): Barcode | null;
 
         protected _computeAlternatingThreshold(offset: number, end: number): number;
@@ -257,17 +264,29 @@ export declare module Readers {
 
     export class Code128Reader extends BarcodeReader {
         CODE_SHIFT: number;
+
         CODE_C: number;
+
         CODE_B: number;
+
         CODE_A: number;
+
         START_CODE_A: number;
+
         START_CODE_B: number;
+
         START_CODE_C: number;
+
         STOP_CODE: number;
+
         CODE_PATTERN: number[][];
+
         SINGLE_CODE_ERROR: number;
+
         AVG_CODE_ERROR: number;
+
         FORMAT: string;
+
         MODULE_INDICES: {
             bar: number[];
             space: number[];
@@ -286,19 +305,9 @@ export declare module Readers {
         protected _verifyTrailingWhitespace(endInfo: BarcodeInfo): BarcodeInfo | null;
     }
 
-    export class Code32Reader extends Code39Reader {
-        FORMAT: string;
-
-        decode(row?: Array<number>, start?: BarcodePosition): Barcode | null;
-
-        protected _decodeCode32(code: string): string | null;
-
-        protected _checkChecksum(code: string): boolean;
-    }
-
     export class Code39Reader extends BarcodeReader {
         FORMAT: string;
-        
+
         decode(row?: Array<number>, start?: BarcodePosition | number | null): Barcode | null;
 
         protected _findStart(): BarcodePosition | null;
@@ -310,6 +319,16 @@ export declare module Readers {
         protected _patternToChar(pattern: number): string | null;
 
         protected _verifyTrailingWhitespace(lastStart: number, nextStart: number, counters: Uint16Array): boolean;
+    }
+
+    export class Code32Reader extends Code39Reader {
+        FORMAT: string;
+
+        decode(row?: Array<number>, start?: BarcodePosition): Barcode | null;
+
+        protected _decodeCode32(code: string): string | null;
+
+        protected _checkChecksum(code: string): boolean;
     }
 
     export class Code39VINReader extends Code39Reader {
@@ -340,24 +359,6 @@ export declare module Readers {
         protected _verifyChecksums(charArray: Array<string>): boolean;
     }
 
-    export class EAN2Reader extends EANReader {
-        FORMAT: string;
-
-        decode(row?: Array<number>, start?: number): Barcode | null;
-    }
-
-    export class EAN5Reader extends EANReader {
-        FORMAT: string;
-
-        decode(row?: Array<number>, start?: number): Barcode | null;
-    }
-
-    export class EAN8Reader extends EANReader {
-        FORMAT: string;
-
-        protected _decodePayload(inCode: BarcodePosition, result: Array<number>, decodedCodes: Array<BarcodePosition>): BarcodeInfo | null;
-    }
-
     export class EANReader extends BarcodeReader {
         FORMAT: string;
         SINGLE_CODE_ERROR: number;
@@ -382,13 +383,37 @@ export declare module Readers {
         protected _checksum(result: Array<number>): boolean;
     }
 
+    export class EAN2Reader extends EANReader {
+        FORMAT: string;
+
+        decode(row?: Array<number>, start?: number): Barcode | null;
+    }
+
+    export class EAN5Reader extends EANReader {
+        FORMAT: string;
+
+        decode(row?: Array<number>, start?: number): Barcode | null;
+    }
+
+    export class EAN8Reader extends EANReader {
+        FORMAT: string;
+
+        protected _decodePayload(inCode: BarcodePosition, result: Array<number>, decodedCodes: Array<BarcodePosition>): BarcodeInfo | null;
+    }
+
     export class I2of5Reader extends BarcodeReader {
         SINGLE_CODE_ERROR: number;
+
         AVG_CODE_ERROR: number;
+
         START_PATTERN: number[];
+
         STOP_PATTERN: number[];
+
         CODE_PATTERN: number[][];
+
         MAX_CORRECTION_FACTOR: number;
+
         FORMAT: string;
 
         constructor(opts: BarcodeReaderConfig);
@@ -416,7 +441,9 @@ export declare module Readers {
 
     export class UPCEReader extends EANReader {
         CODE_FREQUENCY: number[][];
+
         STOP_PATTERN: number[];
+
         FORMAT: string;
 
         protected _decodePayload(inCode: BarcodePosition, result: Array<number>, decodedCodes: Array<BarcodePosition>): BarcodeInfo | null;
@@ -552,16 +579,17 @@ export interface QuaggaJSStatic {
  * Used for accessing information about the active stream track and available video devices.
  */
 export interface QuaggaJSCameraAccess {
-    requestedVideoElement: HTMLVideoElement | null,
-    request(video: HTMLVideoElement | null, videoConstraints?: MediaTrackConstraintsWithDeprecated): Promise<void> | never;
-
-    release(): Promise<void>;
-
+    disableTorch(): Promise<void>;
+    enableTorch(): Promise<void>;
     enumerateVideoDevices(): Promise<MediaDeviceInfo[]> | never;
-
     getActiveStreamLabel(): string;
-
     getActiveTrack(): MediaStreamTrack | null;
+    release(): Promise<void>;
+    request(
+        video: HTMLVideoElement | null,
+        videoConstraints?: MediaTrackConstraintsWithDeprecated
+    ): Promise<void> | never;
+    requestedVideoElement: HTMLVideoElement | null;
 }
 
 /**
@@ -675,6 +703,7 @@ export interface QuaggaJSResultCollector {
     create?(param: QuaggaJSResultCollector): QuaggaJSResultCollector;
 
     getResults?(): QuaggaJSCodeResult[];
+    willReadFrequently?: boolean;
 }
 
 /**
@@ -752,7 +781,7 @@ export interface QuaggaJSConfigObject {
      * Ex: '/test/fixtures/code_128/image-001.jpg'
      * or: 'data:image/jpg;base64,' + data
      */
-    src?: string;
+    src?: string | Uint8Array | Buffer;
 
     inputStream?: {
         /**
@@ -764,6 +793,13 @@ export interface QuaggaJSConfigObject {
          * @default "LiveStream"
          */
         type?: InputStreamType;
+
+        /**
+         * Use canvas.getContext('2d', { willReadFrequently: true }) for browser frame grabber operations
+         * @default false
+         * ... defaulting false because historically this wasn't an option, so i don't want to change behavior
+         */
+        willReadFrequently?: boolean;
 
         target?: Element | string;
 
@@ -800,6 +836,8 @@ export interface QuaggaJSConfigObject {
             bottom?: string;
         };
 
+        mime?: string;
+
         singleChannel?: boolean;
         size?: number;
         sequence?: boolean;
@@ -832,7 +870,7 @@ export interface QuaggaJSConfigObject {
         /**
          * @default [ "code_128_reader" ]
          */
-        readers?: (QuaggaJSReaderConfig | string)[];
+        readers?: (QuaggaJSReaderConfig | QuaggaJSCodeReader)[];
 
         debug?: {
             /**
@@ -876,7 +914,7 @@ export interface QuaggaJSConfigObject {
          * Available values: x-small, small, medium, large, x-large
          */
         patchSize?: string;
-
+        willReadFrequently?: boolean;
         debug?: {
             /**
              * @default false
@@ -934,16 +972,16 @@ export interface QuaggaJSConfigObject {
 }
 
 export interface QuaggaJSReaderConfig {
-    format: string;
     config: {
         supplements: string[];
     };
+    format: string;
 }
 
 export interface MediaTrackConstraintsWithDeprecated extends MediaTrackConstraints {
+    facing?: string;
     maxAspectRatio?: number; // i don't see this in the documentation anywhere, but it's in the original test suite...
     minAspectRatio?: number;
-    facing?: string;
 }
 
 export type TypedArrayConstructor =
@@ -967,3 +1005,19 @@ export type TypedArray =
     | Uint32Array
     | Float32Array
     | Float64Array;
+
+export type QuaggaJSCodeReader =
+    | 'code_128_reader'
+    | 'ean_reader'
+    | 'ean_5_reader'
+    | 'ean_2_reader'
+    | 'ean_8_reader'
+    | 'code_39_reader'
+    | 'code_39_vin_reader'
+    | 'codabar_reader'
+    | 'upc_reader'
+    | 'upc_e_reader'
+    | 'i2of5_reader'
+    | '2of5_reader'
+    | 'code_93_reader'
+    | 'code_32_reader';

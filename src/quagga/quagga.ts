@@ -1,20 +1,22 @@
-import { clone } from 'gl-vec2';
-import { QuaggaContext } from '../QuaggaContext';
-import _initBuffers from './initBuffers';
-import _getViewPort from './getViewPort';
-import ImageWrapper from '../common/image_wrapper';
-import BarcodeDecoder from '../decoder/barcode_decoder';
-import _initCanvas from './initCanvas';
-import BarcodeLocator from '../locator/barcode_locator';
-import InputStream from '../input/input_stream/input_stream';
-import FrameGrabber from '../input/frame_grabber.js';
-import * as QWorkers from './qworker';
-import setupInputStream from './setupInputStream';
-import CameraAccess from '../input/camera_access';
-import { BarcodeInfo } from '../reader/barcode_reader';
-import { moveLine, moveBox } from './transform';
+import { glMatrix, vec2 } from 'gl-matrix';
 import { QuaggaJSResultObject, QuaggaJSReaderConfig } from '../../type-definitions/quagga.d';
 import Events from '../common/events';
+import ImageWrapper from '../common/image_wrapper';
+import BarcodeDecoder from '../decoder/barcode_decoder';
+import CameraAccess from '../input/camera_access';
+import FrameGrabber from '../input/frame_grabber.js';
+import InputStream from '../input/input_stream/input_stream';
+import BarcodeLocator from '../locator/barcode_locator';
+import { QuaggaContext } from '../QuaggaContext';
+import { BarcodeInfo } from '../reader/barcode_reader';
+import _getViewPort from './getViewPort';
+import _initBuffers from './initBuffers';
+import _initCanvas from './initCanvas';
+import * as QWorkers from './qworker';
+import setupInputStream from './setupInputStream';
+import { moveLine, moveBox } from './transform';
+
+glMatrix.setMatrixArrayType(Array);
 
 export default class Quagga {
     context: QuaggaContext = new QuaggaContext();
@@ -80,7 +82,8 @@ export default class Quagga {
             this.context.config.numOfWorkers = 0;
         }
 
-        QWorkers.adjustWorkerPool(this.context.config.numOfWorkers,
+        QWorkers.adjustWorkerPool(
+            this.context.config.numOfWorkers,
             this.context.config,
             this.context.inputStream,
             () => {
@@ -88,7 +91,8 @@ export default class Quagga {
                     this.initializeData();
                 }
                 this.ready(callback);
-            });
+            },
+        );
     };
 
     initInputStream(callback: (err?: Error) => void): void {
@@ -104,9 +108,11 @@ export default class Quagga {
                 .catch((err) => callback(err));
         }
 
-        inputStream.setAttribute('preload', 'auto');
-        inputStream.setInputStream(this.context.config.inputStream);
-        inputStream.addEventListener('canrecord', this.canRecord.bind(undefined, callback));
+        if (inputStream) {
+            inputStream.setAttribute('preload', 'auto');
+            inputStream.setInputStream(this.context.config.inputStream);
+            inputStream.addEventListener('canrecord', this.canRecord.bind(undefined, callback));
+        }
 
         this.context.inputStream = inputStream;
     }
@@ -114,10 +120,10 @@ export default class Quagga {
     getBoundingBoxes(): Array<Array<number>> | null {
         return this.context.config?.locate ? BarcodeLocator.locate()
             : [[
-                clone(this.context.boxSize[0]),
-                clone(this.context.boxSize[1]),
-                clone(this.context.boxSize[2]),
-                clone(this.context.boxSize[3]),
+                vec2.clone(this.context.boxSize[0]),
+                vec2.clone(this.context.boxSize[1]),
+                vec2.clone(this.context.boxSize[2]),
+                vec2.clone(this.context.boxSize[3]),
             ]];
     }
 
@@ -184,7 +190,8 @@ export default class Quagga {
         if (result && this.context.onUIThread) {
             this.transformResult(result);
             this.addResult(result, imageData);
-            resultToPublish = result.barcodes || result;
+            // @ts-ignore
+            resultToPublish = result?.barcodes?.length > 0 ? result.barcodes : result;
         }
 
         Events.publish('processed', resultToPublish as never);
@@ -193,14 +200,14 @@ export default class Quagga {
         }
     }
 
-    locateAndDecode(): void {
+    async locateAndDecode(): Promise<void> {
         const boxes = this.getBoundingBoxes();
         if (boxes) {
-            const decodeResult = this.context.decoder.decodeFromBoundingBoxes(boxes) || {};
+            const decodeResult = (await this.context.decoder.decodeFromBoundingBoxes(boxes)) || {};
             decodeResult.boxes = boxes;
             this.publishResult(decodeResult, this.context.inputImageWrapper?.data);
         } else {
-            const imageResult = this.context.decoder.decodeFromImage(this.context.inputImageWrapper);
+            const imageResult = await this.context.decoder.decodeFromImage(this.context.inputImageWrapper);
             if (imageResult) {
                 this.publishResult(imageResult, this.context.inputImageWrapper?.data);
             } else {

@@ -1,7 +1,13 @@
+// TODO: when this file was written years ago, HTMLMediaElement.play() did not return a useful value
+// to let us know when the video started playing.  Now, it does.  So, we shouldn't need to run this
+// odd waitForVideo() function that polls to see if the video has started.
 import pick from 'lodash/pick';
 import { getUserMedia, enumerateDevices } from '../common/mediaDevices';
-import { MediaTrackConstraintsWithDeprecated, QuaggaJSCameraAccess as CameraAccessType } from '../../type-definitions/quagga.d';
-import { Exception } from '../quagga/Exception';
+import Exception from '../quagga/Exception';
+import type {
+    MediaTrackConstraintsWithDeprecated,
+    QuaggaJSCameraAccess as CameraAccessType,
+} from '../../type-definitions/quagga.d';
 
 let streamRef: MediaStream | null;
 
@@ -44,7 +50,9 @@ async function initCamera(video: HTMLVideoElement | null, constraints: MediaStre
         // eslint-disable-next-line no-param-reassign
         video.srcObject = stream;
         video.addEventListener('loadedmetadata', () => {
-            video.play();
+            video.play().catch((err) => {
+                console.warn('* Error while trying to play video stream:', err);
+            });
         });
         return waitForVideo(video);
     }
@@ -110,7 +118,7 @@ const QuaggaJSCameraAccess: CameraAccessType = {
         return new Promise<void>((resolve) => {
             setTimeout(() => {
                 if (tracks && tracks.length) {
-                    tracks[0].stop();
+                    tracks.forEach((track) => track.stop());
                 }
                 streamRef = null;
                 QuaggaJSCameraAccess.requestedVideoElement = null;
@@ -124,6 +132,36 @@ const QuaggaJSCameraAccess: CameraAccessType = {
         return track ? track.label : '';
     },
     getActiveTrack,
+    async disableTorch() {
+        const track = getActiveTrack();
+        // TODO: should we acquire camera access even if there's no current camera open?
+        // TODO: what happens on iOS or another device where torch isn't supported at all? Should we throw an error?
+        if (track) {
+            try {
+                await track.applyConstraints({ advanced: [{ torch: false }] } as MediaTrackConstraintSet);
+            } catch (err) {
+                if (err instanceof OverconstrainedError) {
+                    console.warn('quagga2/CameraAccess: Torch not supported on this device');
+                }
+                throw err;
+            }
+        }
+    },
+    async enableTorch() {
+        const track = getActiveTrack();
+        // TODO: should we acquire camera access even if there's no current camera open?
+        // TODO: what happens on iOS or another device where torch isn't supported at all? Should we throw an error?
+        if (track) {
+            try {
+                await track.applyConstraints({ advanced: [{ torch: true }] } as MediaTrackConstraintSet);
+            } catch (err) {
+                if (err instanceof OverconstrainedError) {
+                    console.warn('quagga2/CameraAccess: Torch not supported on this device');
+                }
+                throw err;
+            }
+        }
+    },
 };
 
 export default QuaggaJSCameraAccess;

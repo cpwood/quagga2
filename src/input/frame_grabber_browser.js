@@ -27,6 +27,7 @@ function adjustCanvasSize(canvas, targetSize) {
 const FrameGrabber = {};
 
 FrameGrabber.create = function (inputStream, canvas) {
+    // console.warn('*** FrameGrabberBrowser create');
     const _that = {};
     const _streamConfig = inputStream.getConfig();
     const _videoSize = imageRef(inputStream.getRealWidth(), inputStream.getRealHeight());
@@ -38,11 +39,13 @@ FrameGrabber.create = function (inputStream, canvas) {
     let _canvas;
     let _ctx = null;
     let _data = null;
+    const { willReadFrequently } = _streamConfig;
 
     _canvas = canvas || document.createElement('canvas');
     _canvas.width = _canvasSize.x;
     _canvas.height = _canvasSize.y;
-    _ctx = _canvas.getContext('2d');
+    console.warn('*** frame_grabber_browser: willReadFrequently=', willReadFrequently, 'canvas=', _canvas);
+    _ctx = _canvas.getContext('2d', { willReadFrequently: !!willReadFrequently }); // double not because we have an optional bool that needs to pass as a bool
     _data = new Uint8Array(_size.x * _size.y);
     if (ENV.development) {
         console.log('FrameGrabber', JSON.stringify({

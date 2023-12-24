@@ -1,5 +1,4 @@
-import * as vec2 from 'gl-vec2';
-import * as mat2 from 'gl-mat2';
+import { glMatrix, vec2, mat2 } from 'gl-matrix';
 import ImageWrapper from '../common/image_wrapper';
 import {
     calculatePatchSize,
@@ -17,6 +16,7 @@ import Rasterizer from './rasterizer';
 import Tracer from './tracer';
 import skeletonizer from './skeletonizer';
 
+glMatrix.setMatrixArrayType(Array);
 
 let _config;
 let _currentImageWrapper;
@@ -94,7 +94,9 @@ function initCanvas() {
     if (ENV.development && _config.debug.showCanvas === true) {
         document.querySelector('#debug').appendChild(_canvasContainer.dom.binary);
     }
-    _canvasContainer.ctx.binary = _canvasContainer.dom.binary.getContext('2d');
+    const willReadFrequently = !!_config.willReadFrequently;
+    console.warn('* initCanvas willReadFrequently', willReadFrequently, _config);
+    _canvasContainer.ctx.binary = _canvasContainer.dom.binary.getContext('2d', { willReadFrequently });
     _canvasContainer.dom.binary.width = _binaryImageWrapper.size.x;
     _canvasContainer.dom.binary.height = _binaryImageWrapper.size.y;
 }
@@ -388,7 +390,7 @@ function describePatch(moments, patchPos, x, y) {
             avg = 0;
             // determine the similarity of the moments
             for (k = 0; k < matchingMoments.length; k++) {
-                avg += matchingMoments[k].rad;
+                avg += matchingMoments[k]?.rad ?? 0;
             }
 
             // Only two of the moments are allowed not to fit into the equation
@@ -440,7 +442,7 @@ function rasterizeAngularSimilarity(patchesFound) {
                 return i;
             }
         }
-        return _patchLabelGrid.length;
+        return _patchLabelGrid.data.length;
     }
 
     function trace(currentIdx) {
@@ -580,8 +582,8 @@ export default {
             console.log(`Patch-Size: ${JSON.stringify(patchSize)}`);
         }
 
-        inputStream.setWidth(Math.floor(Math.floor(size.x / patchSize.x) * (1 / thisHalfSample) * patchSize.x));
-        inputStream.setHeight(Math.floor(Math.floor(size.y / patchSize.y) * (1 / thisHalfSample) * patchSize.y));
+        inputStream.setWidth(Math.max(Math.floor(Math.floor(size.x / patchSize.x) * (1 / thisHalfSample) * patchSize.x), patchSize.x));
+        inputStream.setHeight(Math.max(Math.floor(Math.floor(size.y / patchSize.y) * (1 / thisHalfSample) * patchSize.y), patchSize.y));
 
         if ((inputStream.getWidth() % patchSize.x) === 0 && (inputStream.getHeight() % patchSize.y) === 0) {
             return true;
